@@ -1,0 +1,15 @@
+services:
+  teji-api:
+    build: .
+    container_name: teji-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8889:8889"
+    networks:
+      - teslamate_default
+
+networks:
+  teslamate_default:
+    external: true

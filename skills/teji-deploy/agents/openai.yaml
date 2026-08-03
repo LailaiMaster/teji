@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy Teji"
+  short_description: "在 NAS 上安全部署并排查特迹与 TeslaMate"
+  default_prompt: "Use $teji-deploy to deploy Teji safely with my TeslaMate instance."

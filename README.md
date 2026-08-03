@@ -51,6 +51,22 @@ app/third_party/     当前高德地图 Android 适配源码
 - Flutter 3.29+ / Dart 3.8+，用于开发或构建 Android 客户端。
 - 如需显示路线地图，需要自行申请高德 Android API Key。
 
+## 使用 Codex 部署 Skill
+
+仓库附带公开的 [`teji-deploy`](skills/teji-deploy/SKILL.md) Skill，可帮助 Codex 检查 TeslaMate/Docker 环境、选择安全的局域网或 VPN 访问方式、部署特迹 API、配置 Android 客户端并排查常见问题。
+
+```bash
+cp -R skills/teji-deploy ~/.codex/skills/
+```
+
+安装后可以这样调用：
+
+```text
+使用 $teji-deploy 帮我把特迹部署到现有的 TeslaMate NAS 上。
+```
+
+Skill 不包含任何 NAS 地址、密码或车辆数据，执行时也会避免输出配置中的敏感值。
+
 ## 快速开始
 
 ### 1. 获取代码

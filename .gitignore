@@ -1,0 +1,25 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Local secrets
+.env
+api/.env
+
+# Generated screenshots and local QA artifacts
+artifacts/
+
+# Flutter / Dart generated files
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/android/build/
+
+# IDE and machine-local files
+app/.idea/
+app/*.iml
+app/android/*.iml
+app/android/local.properties
+app/android/.gradle/
+app/third_party/**/.gradle/

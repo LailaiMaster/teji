@@ -5,11 +5,12 @@ import '../api.dart';
 import '../formatters.dart';
 import '../theme/app_style.dart';
 import '../utils/dashboard_metrics.dart';
+import '../widgets/month_selector.dart';
 import '../widgets/panels.dart';
 import '../widgets/shell.dart';
 import 'calendar_day_page.dart';
 
-class CalendarPage extends StatelessWidget {
+class CalendarPage extends StatefulWidget {
   const CalendarPage({
     super.key,
     required this.api,
@@ -22,46 +23,93 @@ class CalendarPage extends StatelessWidget {
   final List<JsonMap> charges;
 
   @override
+  State<CalendarPage> createState() => _CalendarPageState();
+}
+
+class _CalendarPageState extends State<CalendarPage> {
+  DateTime _selectedMonth = monthOnly(DateTime.now());
+
+  @override
   Widget build(BuildContext context) {
-    final days = monthCalendar(drives, charges);
-    final now = DateTime.now();
+    final days = monthCalendar(widget.drives, widget.charges, _selectedMonth);
+    final leadingEmptyDays =
+        DateTime(_selectedMonth.year, _selectedMonth.month).weekday - 1;
+    final rows = <JsonMap>[...widget.drives, ...widget.charges];
     return PageShell(
       title: '行程日历',
-      subtitle: DateFormat('yyyy-MM').format(DateTime.now()),
+      subtitle: DateFormat('yyyy-MM').format(_selectedMonth),
       children: [
+        MonthSelector(
+          month: _selectedMonth,
+          availableMonths: dataMonths(
+            rows,
+            'start_date',
+            include: _selectedMonth,
+          ),
+          label: '日历月份',
+          onChanged: (month) => setState(() => _selectedMonth = month),
+        ),
+        const SizedBox(height: 14),
         Panel(
           padding: const EdgeInsets.all(12),
-          child: GridView.builder(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: days.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 6,
-              childAspectRatio: 0.86,
-            ),
-            itemBuilder: (context, index) {
-              final day = days[index];
-              return DayCell(
-                day: day,
-                onTap: day.driveCount == 0
-                    ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) {
-                            final date = DateTime(now.year, now.month, day.day);
-                            return CalendarDayPage(
-                              api: api,
-                              date: date,
-                              drives: _drivesOnDate(date),
-                            );
-                          },
+          child: Column(
+            children: [
+              Row(
+                children: ['一', '二', '三', '四', '五', '六', '日']
+                    .map(
+                      (label) => Expanded(
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-              );
-            },
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
+              GridView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: leadingEmptyDays + days.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  crossAxisSpacing: 4,
+                  mainAxisSpacing: 6,
+                  childAspectRatio: 0.86,
+                ),
+                itemBuilder: (context, index) {
+                  if (index < leadingEmptyDays) return const SizedBox.shrink();
+                  final day = days[index - leadingEmptyDays];
+                  return DayCell(
+                    day: day,
+                    onTap: day.driveCount == 0
+                        ? null
+                        : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) {
+                                final date = DateTime(
+                                  _selectedMonth.year,
+                                  _selectedMonth.month,
+                                  day.day,
+                                );
+                                return CalendarDayPage(
+                                  api: widget.api,
+                                  date: date,
+                                  drives: _drivesOnDate(date),
+                                );
+                              },
+                            ),
+                          ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ],
@@ -69,7 +117,7 @@ class CalendarPage extends StatelessWidget {
   }
 
   List<JsonMap> _drivesOnDate(DateTime date) {
-    final rows = drives.where((drive) {
+    final rows = widget.drives.where((drive) {
       final start = DateTime.tryParse(
         textValue(drive['start_date'], fallback: ''),
       );

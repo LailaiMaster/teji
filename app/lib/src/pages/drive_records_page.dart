@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../formatters.dart';
 import '../theme/app_style.dart';
 import '../utils/drive_insights.dart';
 import '../utils/dashboard_metrics.dart';
+import '../widgets/month_selector.dart';
 import '../widgets/panels.dart';
 import '../widgets/route_line.dart';
 import '../widgets/shell.dart';
@@ -22,6 +24,7 @@ class DriveRecordsPage extends StatefulWidget {
 
 class _DriveRecordsPageState extends State<DriveRecordsPage> {
   late Future<List<JsonMap>> _future;
+  DateTime _selectedMonth = monthOnly(DateTime.now());
 
   @override
   void initState() {
@@ -41,30 +44,51 @@ class _DriveRecordsPageState extends State<DriveRecordsPage> {
     return FuturePane<List<JsonMap>>(
       future: _future,
       onRefresh: refresh,
-      builder: (context, drives) => PageShell(
-        title: '行程记录',
-        subtitle: '${drives.length} 条历史行程',
-        children: [
-          DriveSummary(drives: drives),
-          const SizedBox(height: 14),
-          ...drives.map(
-            (drive) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DriveRecordCard(
-                drive: drive,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DriveDetailPage(
-                      api: widget.api,
-                      driveId: asInt(drive['id'])!,
+      builder: (context, drives) {
+        final monthDrives = rowsInMonth(drives, 'start_date', _selectedMonth);
+        return PageShell(
+          title: '行程记录',
+          subtitle:
+              '${DateFormat('yyyy-MM').format(_selectedMonth)} · ${monthDrives.length} 条行程',
+          children: [
+            MonthSelector(
+              month: _selectedMonth,
+              availableMonths: dataMonths(
+                drives,
+                'start_date',
+                include: _selectedMonth,
+              ),
+              onChanged: (month) => setState(() => _selectedMonth = month),
+            ),
+            const SizedBox(height: 14),
+            DriveSummary(drives: monthDrives),
+            const SizedBox(height: 14),
+            if (monthDrives.isEmpty)
+              const Panel(
+                child: Center(
+                  child: Text('该月暂无行程', style: TextStyle(color: muted)),
+                ),
+              )
+            else
+              ...monthDrives.map(
+                (drive) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DriveRecordCard(
+                    drive: drive,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DriveDetailPage(
+                          api: widget.api,
+                          driveId: asInt(drive['id'])!,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }
@@ -76,19 +100,18 @@ class DriveSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final month = currentMonthRows(drives, 'start_date');
-    final distance = sumDouble(month, 'distance');
-    final duration = sumInt(month, 'duration_min');
+    final distance = sumDouble(drives, 'distance');
+    final duration = sumInt(drives, 'duration_min');
     final avg = duration == 0 ? 0 : distance / (duration / 60);
     return Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PanelTitle(icon: Icons.analytics, color: cyan, title: '本月驾驶'),
+          const PanelTitle(icon: Icons.analytics, color: cyan, title: '月度驾驶'),
           const SizedBox(height: 16),
           MetricRow(
             items: [
-              MetricItem('次数', '${month.length}', cyan),
+              MetricItem('次数', '${drives.length}', cyan),
               MetricItem('里程', kmCompact(distance), blue),
               MetricItem('时长', minutesShort(duration), text),
               MetricItem('均速', '${avg.toStringAsFixed(0)} km/h', amber),

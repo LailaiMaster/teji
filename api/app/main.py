@@ -220,29 +220,17 @@ def overview() -> dict[str, Any]:
           order by s.start_date desc
           limit 1
         ) ls on true
+        -- Resolve the latest ID with the narrow composite index first. Selecting
+        -- the full row here can make PostgreSQL scan the primary key backwards
+        -- when car_id statistics are stale on large TeslaMate databases.
         left join lateral (
-          select
-            p.date,
-            p.car_id,
-            p.latitude,
-            p.longitude,
-            p.speed,
-            p.power,
-            p.odometer,
-            p.battery_level,
-            p.usable_battery_level,
-            p.rated_battery_range_km,
-            p.outside_temp,
-            p.inside_temp,
-            p.tpms_pressure_fl,
-            p.tpms_pressure_fr,
-            p.tpms_pressure_rl,
-            p.tpms_pressure_rr
+          select p.id
           from positions p
           where p.car_id = c.id
           order by p.id desc
           limit 1
-        ) lp on true
+        ) latest_position on true
+        left join positions lp on lp.id = latest_position.id
         left join today_drive_stats tds on tds.car_id = c.id
         left join last_drive ld on ld.car_id = c.id
         order by coalesce(c.display_priority, c.id), c.id

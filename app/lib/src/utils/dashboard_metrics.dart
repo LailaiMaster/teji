@@ -53,11 +53,35 @@ List<JsonMap> rowsForCar(List<JsonMap> rows, int? carId) {
 }
 
 List<JsonMap> currentMonthRows(List<JsonMap> rows, String key) {
-  final now = DateTime.now();
+  return rowsInMonth(rows, key, DateTime.now());
+}
+
+DateTime monthOnly(DateTime date) => DateTime(date.year, date.month);
+
+bool isSameMonth(DateTime left, DateTime right) =>
+    left.year == right.year && left.month == right.month;
+
+List<JsonMap> rowsInMonth(List<JsonMap> rows, String key, DateTime month) {
   return rows.where((row) {
     final date = DateTime.tryParse(textValue(row[key], fallback: ''));
-    return date != null && date.year == now.year && date.month == now.month;
+    return date != null && isSameMonth(date, month);
   }).toList();
+}
+
+List<DateTime> dataMonths(List<JsonMap> rows, String key, {DateTime? include}) {
+  final months = <int, DateTime>{};
+  for (final row in rows) {
+    final date = DateTime.tryParse(textValue(row[key], fallback: ''));
+    if (date == null) continue;
+    final month = monthOnly(date);
+    months[month.year * 100 + month.month] = month;
+  }
+  if (include != null) {
+    final month = monthOnly(include);
+    months[month.year * 100 + month.month] = month;
+  }
+  final values = months.values.toList()..sort((a, b) => b.compareTo(a));
+  return values;
 }
 
 List<MonthDistance> lastMonthStats(List<JsonMap> drives) {
@@ -105,9 +129,13 @@ List<MonthValue> lastMonthAchievementStats(List<JsonMap> drives) {
   });
 }
 
-List<DayInfo> monthCalendar(List<JsonMap> drives, List<JsonMap> charges) {
-  final now = DateTime.now();
-  final lastDay = DateTime(now.year, now.month + 1, 0).day;
+List<DayInfo> monthCalendar(
+  List<JsonMap> drives,
+  List<JsonMap> charges,
+  DateTime month,
+) {
+  final selectedMonth = monthOnly(month);
+  final lastDay = DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
   final distanceByDay = <int, double>{};
   final drivesByDay = <int, int>{};
   final chargeDays = <int>{};
@@ -115,7 +143,7 @@ List<DayInfo> monthCalendar(List<JsonMap> drives, List<JsonMap> charges) {
     final date = DateTime.tryParse(
       textValue(drive['start_date'], fallback: ''),
     );
-    if (date == null || date.year != now.year || date.month != now.month) {
+    if (date == null || !isSameMonth(date, selectedMonth)) {
       continue;
     }
     distanceByDay[date.day] =
@@ -126,7 +154,7 @@ List<DayInfo> monthCalendar(List<JsonMap> drives, List<JsonMap> charges) {
     final date = DateTime.tryParse(
       textValue(charge['start_date'], fallback: ''),
     );
-    if (date == null || date.year != now.year || date.month != now.month) {
+    if (date == null || !isSameMonth(date, selectedMonth)) {
       continue;
     }
     chargeDays.add(date.day);

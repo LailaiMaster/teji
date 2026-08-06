@@ -5,17 +5,17 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../formatters.dart';
 import '../theme/app_style.dart';
 import '../utils/dashboard_metrics.dart';
 import '../utils/geo_transform.dart';
+import '../widgets/month_selector.dart';
 import '../widgets/panels.dart';
 import '../widgets/shell.dart';
 
-class MonthHeatMapPage extends StatelessWidget {
+class MonthHeatMapPage extends StatefulWidget {
   const MonthHeatMapPage({
     super.key,
     required this.month,
@@ -26,16 +26,48 @@ class MonthHeatMapPage extends StatelessWidget {
   final List<JsonMap> drives;
 
   @override
+  State<MonthHeatMapPage> createState() => _MonthHeatMapPageState();
+}
+
+class _MonthHeatMapPageState extends State<MonthHeatMapPage> {
+  late DateTime _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMonth = monthOnly(widget.month);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final drives = rowsInMonth(widget.drives, 'start_date', _selectedMonth);
     final points = _heatPoints(drives);
     final hotspots = _hotspots(drives);
     return PageShell(
-      title: '${DateFormat('yyyy-MM').format(month)} 热力',
+      title: '月度驾驶热力',
       subtitle: '${drives.length} 条行程 · 起终点分布',
       children: [
+        MonthSelector(
+          month: _selectedMonth,
+          availableMonths: dataMonths(
+            widget.drives,
+            'start_date',
+            include: _selectedMonth,
+          ),
+          onChanged: (month) => setState(() => _selectedMonth = month),
+        ),
+        const SizedBox(height: 14),
         Panel(
           padding: const EdgeInsets.all(12),
-          child: SizedBox(height: 360, child: MonthHeatMap(points: points)),
+          child: SizedBox(
+            height: 360,
+            child: MonthHeatMap(
+              key: ValueKey(
+                'heat-${_selectedMonth.year}-${_selectedMonth.month}',
+              ),
+              points: points,
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         Panel(

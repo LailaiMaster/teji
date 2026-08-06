@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../formatters.dart';
 import '../theme/app_style.dart';
 import '../utils/dashboard_metrics.dart';
+import '../widgets/month_selector.dart';
 import '../widgets/panels.dart';
 import '../widgets/shell.dart';
 import 'drive_detail_page.dart';
 import 'drive_records_page.dart';
 import 'month_heat_map_page.dart';
 
-class MonthDrivesPage extends StatelessWidget {
+class MonthDrivesPage extends StatefulWidget {
   const MonthDrivesPage({
     super.key,
     required this.api,
@@ -24,21 +24,41 @@ class MonthDrivesPage extends StatelessWidget {
   final List<JsonMap> drives;
 
   @override
+  State<MonthDrivesPage> createState() => _MonthDrivesPageState();
+}
+
+class _MonthDrivesPageState extends State<MonthDrivesPage> {
+  late DateTime _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMonth = monthOnly(widget.month);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final monthDrives = drives.where((drive) {
-      final date = DateTime.tryParse(
-        textValue(drive['start_date'], fallback: ''),
-      );
-      return date != null &&
-          date.year == month.year &&
-          date.month == month.month;
-    }).toList();
+    final monthDrives = rowsInMonth(
+      widget.drives,
+      'start_date',
+      _selectedMonth,
+    );
     final distance = sumDouble(monthDrives, 'distance');
     final duration = sumInt(monthDrives, 'duration_min');
     return PageShell(
-      title: '${DateFormat('yyyy-MM').format(month)} 行程',
+      title: '月度行程',
       subtitle: '${monthDrives.length} 条记录',
       children: [
+        MonthSelector(
+          month: _selectedMonth,
+          availableMonths: dataMonths(
+            widget.drives,
+            'start_date',
+            include: _selectedMonth,
+          ),
+          onChanged: (month) => setState(() => _selectedMonth = month),
+        ),
+        const SizedBox(height: 14),
         Panel(
           padding: const EdgeInsets.all(14),
           child: MetricRow(
@@ -61,8 +81,10 @@ class MonthDrivesPage extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) =>
-                    MonthHeatMapPage(month: month, drives: monthDrives),
+                builder: (_) => MonthHeatMapPage(
+                  month: _selectedMonth,
+                  drives: widget.drives,
+                ),
               ),
             ),
             child: Panel(
@@ -104,8 +126,10 @@ class MonthDrivesPage extends StatelessWidget {
                 drive: drive,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        DriveDetailPage(api: api, driveId: asInt(drive['id'])!),
+                    builder: (_) => DriveDetailPage(
+                      api: widget.api,
+                      driveId: asInt(drive['id'])!,
+                    ),
                   ),
                 ),
               ),

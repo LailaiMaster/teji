@@ -6,11 +6,12 @@ import '../formatters.dart';
 import '../theme/app_style.dart';
 import '../utils/dashboard_metrics.dart';
 import '../utils/drive_insights.dart';
+import '../widgets/month_selector.dart';
 import '../widgets/panels.dart';
 import '../widgets/shell.dart';
 import 'drive_detail_page.dart';
 
-class ReportsPage extends StatelessWidget {
+class ReportsPage extends StatefulWidget {
   const ReportsPage({
     super.key,
     required this.api,
@@ -23,25 +24,43 @@ class ReportsPage extends StatelessWidget {
   final List<JsonMap> charges;
 
   @override
+  State<ReportsPage> createState() => _ReportsPageState();
+}
+
+class _ReportsPageState extends State<ReportsPage> {
+  DateTime _selectedMonth = monthOnly(DateTime.now());
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final weekStart = _startOfWeek(now);
-    final monthStart = DateTime(now.year, now.month);
+    final monthStart = monthOnly(_selectedMonth);
     final weekly = _periodReport(
       '本周',
       weekStart,
       weekStart.add(const Duration(days: 7)),
     );
     final monthly = _periodReport(
-      '本月',
+      '${DateFormat('yyyy年MM月').format(monthStart)}月报',
       monthStart,
-      DateTime(now.year, now.month + 1),
+      DateTime(monthStart.year, monthStart.month + 1),
     );
 
     return PageShell(
       title: '周报月报',
       subtitle: '基于本地 TeslaMate 数据生成',
       children: [
+        MonthSelector(
+          month: _selectedMonth,
+          availableMonths: dataMonths(
+            <JsonMap>[...widget.drives, ...widget.charges],
+            'start_date',
+            include: _selectedMonth,
+          ),
+          label: '月报月份',
+          onChanged: (month) => setState(() => _selectedMonth = month),
+        ),
+        const SizedBox(height: 14),
         ReportPanel(
           report: weekly,
           onOpenDrive: (drive) => _openDrive(context, drive),
@@ -56,13 +75,13 @@ class ReportsPage extends StatelessWidget {
   }
 
   PeriodReport _periodReport(String title, DateTime start, DateTime end) {
-    final periodDrives = drives.where((drive) {
+    final periodDrives = widget.drives.where((drive) {
       final date = DateTime.tryParse(
         textValue(drive['start_date'], fallback: ''),
       );
       return date != null && !date.isBefore(start) && date.isBefore(end);
     }).toList();
-    final periodCharges = charges.where((charge) {
+    final periodCharges = widget.charges.where((charge) {
       final date = DateTime.tryParse(
         textValue(charge['start_date'], fallback: ''),
       );
@@ -97,7 +116,8 @@ class ReportsPage extends StatelessWidget {
   void _openDrive(BuildContext context, JsonMap drive) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => DriveDetailPage(api: api, driveId: asInt(drive['id'])!),
+        builder: (_) =>
+            DriveDetailPage(api: widget.api, driveId: asInt(drive['id'])!),
       ),
     );
   }
